@@ -180,6 +180,20 @@ namespace NuGet.VisualStudio
             }
         }
 
+        public IEnumerable<PackageOperation> GetInstallPackageOperations(
+            IProjectManager projectManager,
+            string packageId,
+            SemanticVersion version,
+            bool ignoreDependencies,
+            bool allowPrereleaseVersions)
+        {
+            IPackage package = PackageRepositoryHelper.ResolvePackage(SourceRepository, LocalRepository, packageId, version, allowPrereleaseVersions);
+            var targetFramework = projectManager != null ? projectManager.Project.TargetFramework : null;
+            var installerWalker = new InstallWalker(
+                    LocalRepository, SourceRepository, targetFramework, Logger, ignoreDependencies, allowPrereleaseVersions);
+            return installerWalker.ResolveOperations(package);
+        }
+
         public void InstallPackage(IProjectManager projectManager, IPackage package, IEnumerable<PackageOperation> operations, bool ignoreDependencies,
                 bool allowPrereleaseVersions, ILogger logger)
         {

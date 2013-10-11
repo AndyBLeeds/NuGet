@@ -63,6 +63,9 @@ namespace NuGet.PowerShell.Commands
         [Parameter]
         public FileConflictAction FileConflictAction { get; set; }
 
+        [Parameter]
+        public SwitchParameter WhatIf { get; set; }
+
         private string _fallbackToLocalCacheMessge = Resources.Cmdlet_FallbackToCache;
         private string _localCacheFailureMessage = Resources.Cmdlet_LocalCacheFailure;
         private string _cacheStatusMessage = String.Empty;
@@ -134,7 +137,26 @@ namespace NuGet.PowerShell.Commands
                     {
                          this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _cacheStatusMessage, _packageSourceProvider.ActivePackageSource, Source));
                     }
-                    PackageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
+
+                    if (WhatIf)
+                    {
+                        var operations = PackageManager.GetInstallPackageOperations(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent);
+                        if (operations.IsEmpty())
+                        {
+                            this.Log(MessageLevel.Info, "Nothing to do");
+                        }
+                        else
+                        {
+                            foreach (var operation in operations)
+                            {
+                                this.Log(MessageLevel.Info, "{0} {1}", operation.Action, operation.Package);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        PackageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
+                    }
                     _hasConnectedToHttpSource |= UriHelper.IsHttpSource(Source, _packageSourceProvider);
                 }
             }
