@@ -40,7 +40,8 @@ namespace NuGet
                  targetFramework: targetFramework,
                  logger: logger,
                  ignoreDependencies: ignoreDependencies,
-                 allowPrereleaseVersions: allowPrereleaseVersions)
+                 allowPrereleaseVersions: allowPrereleaseVersions,
+                 minDependencyPatches: false)
         {
         }
 
@@ -50,7 +51,8 @@ namespace NuGet
                              FrameworkName targetFramework,
                              ILogger logger,
                              bool ignoreDependencies,
-                             bool allowPrereleaseVersions)
+                             bool allowPrereleaseVersions,
+                             bool minDependencyPatches)
             : base(targetFramework)
         {
 
@@ -74,6 +76,7 @@ namespace NuGet
             ConstraintProvider = constraintProvider;
             _operations = new OperationLookup();
             _allowPrereleaseVersions = allowPrereleaseVersions;
+            MinDependencyPatches = minDependencyPatches;
         }
 
         internal bool DisableWalkInfo
@@ -221,6 +224,12 @@ namespace NuGet
             }
         }
 
+        private IPackage SelectDependency(IEnumerable<IPackage> dependencies)
+        {
+            return MinDependencyPatches ? dependencies.FirstOrDefault() :
+                dependencies.ResolveSafeVersion();
+        }
+
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "We re-throw a more specific exception later on")]
         private bool TryUpdate(IEnumerable<IPackage> dependents, ConflictResult conflictResult, IPackage package, out IEnumerable<IPackage> incompatiblePackages)
         {
@@ -241,9 +250,8 @@ namespace NuGet
                            select new
                            {
                                OldPackage = oldPackage,
-                               NewPackage = g.Where(p => p.Version > oldPackage.Version)
-                                             .OrderBy(p => p.Version)
-                                             .FirstOrDefault()
+                               NewPackage = SelectDependency(g.Where(p => p.Version > oldPackage.Version)
+                                   .OrderBy(p => package.Version))
                            };
 
             foreach (var p in packages)
@@ -342,14 +350,14 @@ namespace NuGet
 
             // First try to get a local copy of the package
             // Bug1638: Include prereleases when resolving locally installed dependencies.
-            IPackage package = Repository.ResolveDependency(dependency, ConstraintProvider, allowPrereleaseVersions: true, preferListedPackages: false);
+            IPackage package = Repository.ResolveDependency(dependency, ConstraintProvider, allowPrereleaseVersions: true, preferListedPackages: false, minDependencyPatches: MinDependencyPatches);
             if (package != null)
             {
                 return package;
             }
 
             // Next, query the source repo for the same dependency
-            IPackage sourcePackage = SourceRepository.ResolveDependency(dependency, ConstraintProvider, AllowPrereleaseVersions, preferListedPackages: true);
+            IPackage sourcePackage = SourceRepository.ResolveDependency(dependency, ConstraintProvider, AllowPrereleaseVersions, preferListedPackages: true, minDependencyPatches: MinDependencyPatches);
             return sourcePackage;
         }
 

@@ -26,7 +26,9 @@ namespace NuGet
                             ILogger logger,
                             bool updateDependencies,
                             bool allowPrereleaseVersions)
-            : base(localRepository, sourceRepository, constraintProvider, targetFramework, logger, !updateDependencies, allowPrereleaseVersions)
+            : base(localRepository, sourceRepository, constraintProvider, targetFramework, 
+                   logger, !updateDependencies, allowPrereleaseVersions,
+                   minDependencyPatches: false)
         {
             _dependentsResolver = dependentsResolver;
             AcceptedTargets = PackageTargets.All;

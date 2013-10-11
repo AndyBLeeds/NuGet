@@ -79,7 +79,7 @@ namespace NuGet.Test
             var repository = new Mock<PackageRepositoryBase>();
             repository.Setup(c => c.GetPackages()).Returns(new[] { packageA }.AsQueryable());
             var dependencyProvider = repository.As<IDependencyResolver>();
-            dependencyProvider.Setup(c => c.ResolveDependency(It.Is<PackageDependency>(p => p.Id == "B"), It.IsAny<IPackageConstraintProvider>(), false, true))
+            dependencyProvider.Setup(c => c.ResolveDependency(It.Is<PackageDependency>(p => p.Id == "B"), It.IsAny<IPackageConstraintProvider>(), false, true, false))
                               .Returns(packageB).Verifiable();
             var localRepository = new MockPackageRepository();
 
@@ -114,7 +114,7 @@ namespace NuGet.Test
             var repository = new Mock<PackageRepositoryBase>(MockBehavior.Strict);
             repository.Setup(c => c.GetPackages()).Returns(new[] { packageA }.AsQueryable());
             var dependencyProvider = repository.As<IDependencyResolver>();
-            dependencyProvider.Setup(c => c.ResolveDependency(packageDependency, It.IsAny<IPackageConstraintProvider>(), false, true))
+            dependencyProvider.Setup(c => c.ResolveDependency(packageDependency, It.IsAny<IPackageConstraintProvider>(), false, true, false))
                               .Returns(packageB12).Verifiable();
             var localRepository = new MockPackageRepository();
 
@@ -526,7 +526,8 @@ namespace NuGet.Test
                                                                    null,
                                                                    NullLogger.Instance,
                                                                    ignoreDependencies: false,
-                                                                   allowPrereleaseVersions: false);
+                                                                   allowPrereleaseVersions: false,
+                                                                   minDependencyPatches: false);
 
             // Act & Assert
             ExceptionAssert.Throws<InvalidOperationException>(() => resolver.ResolveOperations(A20), "Unable to resolve dependency 'B (\u2265 2.0)'.'B' has an additional constraint (= 1.4) defined in foo.");
@@ -1133,8 +1134,10 @@ namespace NuGet.Test
             Assert.Equal(new SemanticVersion("1.0"), packages[3].Package.Version);
         }
 
+        // Tests that when minDependencyPatches is true, the dependency with the lowest major minor and patch version
+        // is picked.
         [Fact]
-        public void InstallWalkerResolvesLowestMajorAndMinorVersionOfListedPackagesForDependencies()
+        public void InstallWalkerResolvesLowestMajorAndMinorAndPatchVersionOfListedPackagesForDependencies()
         {
             // Arrange
 
@@ -1159,10 +1162,14 @@ namespace NuGet.Test
 
 
             IPackageOperationResolver resolver = new InstallWalker(new MockPackageRepository(),
-                                                                   repository,
-                                                                   NullLogger.Instance,
-                                                                   ignoreDependencies: false,
-                                                                   allowPrereleaseVersions: false);
+                repository,
+                constraintProvider: null,
+                logger: NullLogger.Instance,
+                targetFramework: null,
+                ignoreDependencies: false,
+                allowPrereleaseVersions: false,
+                minDependencyPatches: true);
+
             // Act
             var packages = resolver.ResolveOperations(A10).ToList();
 
@@ -1172,6 +1179,57 @@ namespace NuGet.Test
             Assert.Equal(new SemanticVersion("1.0.1"), packages[0].Package.Version);
             Assert.Equal("A", packages[1].Package.Id);
             Assert.Equal(new SemanticVersion("1.0"), packages[1].Package.Version);
+        }
+
+        // Tests that when minDependencyPatches is false, the dependency with the lowest major minor and highest patch version
+        // is picked.
+        [Fact]
+        public void InstallWalkerResolvesLowestMajorAndMinorHighestPatchVersionOfListedPackagesForDependencies()
+        {
+            // Arrange
+
+            // A 1.0 -> B 1.0
+            // B 1.0 -> C 1.1
+            // C 1.1 -> D 1.0
+
+            var A10 = PackageUtility.CreatePackage("A", "1.0", dependencies: new[] { PackageDependency.CreateDependency("B", "1.0") });
+
+            var repository = new MockPackageRepository() {
+                PackageUtility.CreatePackage("B", "2.0", dependencies: new[] { PackageDependency.CreateDependency("C", "1.1") }),
+                PackageUtility.CreatePackage("B", "1.0", dependencies: new[] { PackageDependency.CreateDependency("C", "1.1") }, listed: false),
+                PackageUtility.CreatePackage("B", "1.0.1"),
+                A10,
+                PackageUtility.CreatePackage("D", "2.0"),
+                PackageUtility.CreatePackage("C", "1.1.3", dependencies: new[] { PackageDependency.CreateDependency("D", "1.0") }),
+                PackageUtility.CreatePackage("C", "1.1.1", dependencies: new[] { PackageDependency.CreateDependency("D", "1.0") }, listed: false),
+                PackageUtility.CreatePackage("C", "1.5.1", dependencies: new[] { PackageDependency.CreateDependency("D", "1.0") }),
+                PackageUtility.CreatePackage("B", "1.0.9", dependencies: new[] { PackageDependency.CreateDependency("C", "1.1") }),
+                PackageUtility.CreatePackage("B", "1.1", dependencies: new[] { PackageDependency.CreateDependency("C", "1.1") })
+            };
+
+
+            IPackageOperationResolver resolver = new InstallWalker(new MockPackageRepository(),
+                repository,
+                constraintProvider: null,
+                logger: NullLogger.Instance,
+                targetFramework: null,
+                ignoreDependencies: false,
+                allowPrereleaseVersions: false,
+                minDependencyPatches: false);
+
+            // Act
+            var packages = resolver.ResolveOperations(A10).ToList();
+
+            // Assert
+            Assert.Equal(4, packages.Count);
+            Assert.Equal("D", packages[0].Package.Id);
+            Assert.Equal(new SemanticVersion("2.0"), packages[0].Package.Version);
+            Assert.Equal("C", packages[1].Package.Id);
+            Assert.Equal(new SemanticVersion("1.1.3"), packages[1].Package.Version);
+            Assert.Equal("B", packages[2].Package.Id);
+            Assert.Equal(new SemanticVersion("1.0.9"), packages[2].Package.Version);
+            Assert.Equal("A", packages[3].Package.Id);
+            Assert.Equal(new SemanticVersion("1.0"), packages[3].Package.Version);
         }
 
         private void AssertOperation(string expectedId, string expectedVersion, PackageAction expectedAction, PackageOperation operation)

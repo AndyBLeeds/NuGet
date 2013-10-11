@@ -310,17 +310,22 @@ namespace NuGet
 
         public static IPackage ResolveDependency(this IPackageRepository repository, PackageDependency dependency, bool allowPrereleaseVersions, bool preferListedPackages)
         {
-            return ResolveDependency(repository, dependency, constraintProvider: null, allowPrereleaseVersions: allowPrereleaseVersions, preferListedPackages: preferListedPackages);
+            return ResolveDependency(repository, dependency, constraintProvider: null, allowPrereleaseVersions: allowPrereleaseVersions, preferListedPackages: preferListedPackages, minDependencyPatches: false);
         }
 
         public static IPackage ResolveDependency(this IPackageRepository repository, PackageDependency dependency, IPackageConstraintProvider constraintProvider, bool allowPrereleaseVersions, bool preferListedPackages)
         {
+            return ResolveDependency(repository, dependency, constraintProvider, allowPrereleaseVersions, preferListedPackages, minDependencyPatches: false);
+        }
+
+        public static IPackage ResolveDependency(this IPackageRepository repository, PackageDependency dependency, IPackageConstraintProvider constraintProvider, bool allowPrereleaseVersions, bool preferListedPackages, bool minDependencyPatches)
+        {
             IDependencyResolver dependencyResolver = repository as IDependencyResolver;
             if (dependencyResolver != null)
             {
-                return dependencyResolver.ResolveDependency(dependency, constraintProvider, allowPrereleaseVersions, preferListedPackages);
+                return dependencyResolver.ResolveDependency(dependency, constraintProvider, allowPrereleaseVersions, preferListedPackages, minDependencyPatches);
             }
-            return ResolveDependencyCore(repository, dependency, constraintProvider, allowPrereleaseVersions, preferListedPackages);
+            return ResolveDependencyCore(repository, dependency, constraintProvider, allowPrereleaseVersions, preferListedPackages, minDependencyPatches);
         }
 
         internal static IPackage ResolveDependencyCore(
@@ -328,7 +333,8 @@ namespace NuGet
             PackageDependency dependency,
             IPackageConstraintProvider constraintProvider,
             bool allowPrereleaseVersions,
-            bool preferListedPackages)
+            bool preferListedPackages,
+            bool minDependencyPatches)
         {
             if (repository == null)
             {
@@ -351,23 +357,30 @@ namespace NuGet
             {
                 // pick among Listed packages first
                 IPackage listedSelectedPackage = ResolveDependencyCore(candidates.Where(PackageExtensions.IsListed),
-                                                                       dependency);
+                                                                       dependency, minDependencyPatches);
                 if (listedSelectedPackage != null)
                 {
                     return listedSelectedPackage;
                 }
             }
 
-            return ResolveDependencyCore(candidates, dependency);
+            return ResolveDependencyCore(candidates, dependency, minDependencyPatches);
         }
 
-        private static IPackage ResolveDependencyCore(IEnumerable<IPackage> packages, PackageDependency dependency)
+        private static IPackage ResolveDependencyCore(IEnumerable<IPackage> packages, PackageDependency dependency, bool minDependencyPatches)
         {
             // If version info was specified then use it
             if (dependency.VersionSpec != null)
             {
-                packages = packages.FindByVersion(dependency.VersionSpec);
-                return packages.OrderBy(p => p.Version).FirstOrDefault();
+                packages = packages.FindByVersion(dependency.VersionSpec).OrderBy(p => p.Version);
+                if (minDependencyPatches)
+                {
+                    return packages.FirstOrDefault();
+                }
+                else
+                {
+                    return packages.ResolveSafeVersion();
+                }
             }
             else
             {
@@ -548,6 +561,30 @@ namespace NuGet
             }
 
             return packages;
+        }
+
+        internal static IPackage ResolveSafeVersion(this IEnumerable<IPackage> packages)
+        {
+            // Return null if there's no packages
+            if (packages == null || !packages.Any())
+            {
+                return null;
+            }
+
+            // We want to take the biggest build and revision number for the smallest
+            // major and minor combination (we want to make some versioning assumptions that the 3rd number is a non-breaking bug fix). This is so that we get the closest version
+            // to the dependency, but also get bug fixes without requiring people to manually update the nuspec.
+            // For example, if A -> B 1.0.0 and the feed has B 1.0.0 and B 1.0.1 then the more correct choice is B 1.0.1. 
+            // If we don't do this, A will always end up getting the 'buggy' 1.0.0, 
+            // unless someone explicitly changes it to ask for 1.0.1, which is very painful if many packages are using B 1.0.0.
+            var groups = from p in packages
+                         group p by new { p.Version.Version.Major, p.Version.Version.Minor } into g
+                         orderby g.Key.Major, g.Key.Minor
+                         select g;
+
+            return (from p in groups.First()
+                    orderby p.Version descending
+                    select p).FirstOrDefault();
         }
     }
 }
