@@ -63,6 +63,12 @@ namespace NuGet.PowerShell.Commands
         [Parameter]
         public FileConflictAction FileConflictAction { get; set; }
 
+        [Parameter]
+        public SwitchParameter WhatIf { get; set; }
+
+        [Parameter]
+        public SwitchParameter MaxDependencyPatches { get; set; }
+
         private string _fallbackToLocalCacheMessge = Resources.Cmdlet_FallbackToCache;
         private string _localCacheFailureMessage = Resources.Cmdlet_LocalCacheFailure;
         private string _cacheStatusMessage = String.Empty;
@@ -128,15 +134,24 @@ namespace NuGet.PowerShell.Commands
             try
             {
                 SubscribeToProgressEvents();
-                if (PackageManager != null)
+
+                if (PackageManager == null)
                 {
-                    if (!String.IsNullOrEmpty(_cacheStatusMessage))
-                    {
-                         this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _cacheStatusMessage, _packageSourceProvider.ActivePackageSource, Source));
-                    }
-                    PackageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
-                    _hasConnectedToHttpSource |= UriHelper.IsHttpSource(Source, _packageSourceProvider);
+                    return;
                 }
+                
+                if (ProjectManager != null)
+                {
+                    ProjectManager.MaxDependencyPatches = MaxDependencyPatches;
+                }
+
+                if (!String.IsNullOrEmpty(_cacheStatusMessage))
+                {
+                    this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _cacheStatusMessage, _packageSourceProvider.ActivePackageSource, Source));
+                }
+
+                InstallPackage(PackageManager);
+                _hasConnectedToHttpSource |= UriHelper.IsHttpSource(Source, _packageSourceProvider);
             }
             //If the http source is not available, we fallback to NuGet Local Cache
             catch (Exception ex)
@@ -151,10 +166,7 @@ namespace NuGet.PowerShell.Commands
                         this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _fallbackToLocalCacheMessge, _currentSource, cache));
                         var repository = CreateRepositoryFromSource(_repositoryFactory, _packageSourceProvider, cache);
                         IVsPackageManager packageManager = (repository == null ? null : PackageManagerFactory.CreatePackageManager(repository, useFallbackForDependencies: true));
-                        if (packageManager != null)
-                        {
-                            packageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
-                        }
+                        InstallPackage(packageManager);
                     }
                 }
                 else
@@ -208,6 +220,18 @@ namespace NuGet.PowerShell.Commands
             {
                 _cacheStatusMessage = String.Format(CultureInfo.CurrentCulture, _localCacheFailureMessage, currentSource);
             }
+        }       
+
+        private void InstallPackage(IVsPackageManager packageManager)
+        {
+            if (packageManager == null)
+            {
+                return;
+            }
+
+            packageManager.MaxDependencyPatches = MaxDependencyPatches;
+            packageManager.WhatIf = WhatIf;
+            packageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
         }
     }
 }
