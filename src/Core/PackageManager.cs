@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -49,6 +50,7 @@ namespace NuGet
             PathResolver = pathResolver;
             FileSystem = fileSystem;
             LocalRepository = localRepository;
+            MinDependencyPatches = false;
         }
 
         public IFileSystem FileSystem
@@ -87,6 +89,12 @@ namespace NuGet
             }
         }
 
+        public bool MinDependencyPatches
+        {
+            get;
+            set;
+        }
+
         public void InstallPackage(string packageId)
         {
             InstallPackage(packageId, version: null, ignoreDependencies: false, allowPrereleaseVersions: false);
@@ -121,13 +129,41 @@ namespace NuGet
             bool allowPrereleaseVersions,
             bool ignoreWalkInfo = false)
         {
-            var installerWalker = new InstallWalker(
-                    LocalRepository, SourceRepository, targetFramework, Logger, ignoreDependencies, allowPrereleaseVersions)
-                {
-                    DisableWalkInfo = ignoreWalkInfo
-                };
-            
+            var installerWalker = CreateInstallWalker(
+                targetFramework, ignoreDependencies, 
+                allowPrereleaseVersions, ignoreWalkInfo);
             Execute(package, installerWalker);
+        }
+
+        public IEnumerable<PackageOperation> GetInstallPackageOperations(
+            IProjectManager projectManager,
+            string packageId,
+            SemanticVersion version,
+            bool ignoreDependencies,
+            bool allowPrereleaseVersions)
+        {
+            IPackage package = PackageRepositoryHelper.ResolvePackage(SourceRepository, LocalRepository, packageId, version, allowPrereleaseVersions);
+            var targetFramework = projectManager != null ? projectManager.Project.TargetFramework : null;
+            var installerWalker = CreateInstallWalker(
+                targetFramework, ignoreDependencies, allowPrereleaseVersions, ignoreWalkInfo: false);
+            return installerWalker.ResolveOperations(package);
+        }
+
+        private InstallWalker CreateInstallWalker(
+            FrameworkName targetFramework,
+            bool ignoreDependencies,
+            bool allowPrereleaseVersions,
+            bool ignoreWalkInfo)
+        {
+            var installerWalker = new InstallWalker(
+                LocalRepository, SourceRepository,
+                targetFramework, Logger,
+                ignoreDependencies, allowPrereleaseVersions)
+                {
+                    DisableWalkInfo = ignoreWalkInfo,
+                    MinDependencyPatches = MinDependencyPatches
+                };
+            return installerWalker;
         }
 
         private void Execute(IPackage package, IPackageOperationResolver resolver)

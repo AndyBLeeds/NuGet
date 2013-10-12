@@ -66,6 +66,9 @@ namespace NuGet.PowerShell.Commands
         [Parameter]
         public SwitchParameter WhatIf { get; set; }
 
+        [Parameter]
+        public SwitchParameter MinDependencyPatches { get; set; }
+
         private string _fallbackToLocalCacheMessge = Resources.Cmdlet_FallbackToCache;
         private string _localCacheFailureMessage = Resources.Cmdlet_LocalCacheFailure;
         private string _cacheStatusMessage = String.Empty;
@@ -131,35 +134,42 @@ namespace NuGet.PowerShell.Commands
             try
             {
                 SubscribeToProgressEvents();
-                if (PackageManager != null)
+                if (PackageManager == null)
                 {
-                    if (!String.IsNullOrEmpty(_cacheStatusMessage))
-                    {
-                         this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _cacheStatusMessage, _packageSourceProvider.ActivePackageSource, Source));
-                    }
+                    return;
+                }
 
-                    if (WhatIf)
+                PackageManager.MinDependencyPatches = MinDependencyPatches;
+                if (ProjectManager != null)
+                {
+                    ProjectManager.MinDependencyPatches = MinDependencyPatches;
+                }
+
+                if (!String.IsNullOrEmpty(_cacheStatusMessage))
+                {
+                    this.Log(MessageLevel.Warning, String.Format(CultureInfo.CurrentCulture, _cacheStatusMessage, _packageSourceProvider.ActivePackageSource, Source));
+                }
+
+                if (WhatIf)
+                {
+                    var operations = PackageManager.GetInstallPackageOperations(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent);
+                    if (operations.IsEmpty())
                     {
-                        /* !!!
-                        var operations = PackageManager.GetInstallPackageOperations(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent);
-                        if (operations.IsEmpty())
-                        {
-                            this.Log(MessageLevel.Info, "Nothing to do");
-                        }
-                        else
-                        {
-                            foreach (var operation in operations)
-                            {
-                                this.Log(MessageLevel.Info, "{0} {1}", operation.Action, operation.Package);
-                            }
-                        } */
+                        this.Log(MessageLevel.Info, Resources.Cmdlet_NothingToDo);
                     }
                     else
                     {
-                        PackageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
+                        foreach (var operation in operations)
+                        {
+                            this.Log(MessageLevel.Info, Resources.Cmdlet_PackageOperation, operation.Action, operation.Package);
+                        }
                     }
-                    _hasConnectedToHttpSource |= UriHelper.IsHttpSource(Source, _packageSourceProvider);
                 }
+                else
+                {
+                    PackageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
+                }
+                _hasConnectedToHttpSource |= UriHelper.IsHttpSource(Source, _packageSourceProvider);
             }
             //If the http source is not available, we fallback to NuGet Local Cache
             catch (Exception ex)
@@ -176,6 +186,7 @@ namespace NuGet.PowerShell.Commands
                         IVsPackageManager packageManager = (repository == null ? null : PackageManagerFactory.CreatePackageManager(repository, useFallbackForDependencies: true));
                         if (packageManager != null)
                         {
+                            packageManager.MinDependencyPatches = MinDependencyPatches;
                             packageManager.InstallPackage(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent, logger: this);
                         }
                     }

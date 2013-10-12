@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace NuGet
 {
@@ -15,6 +16,8 @@ namespace NuGet
         IPackageRepository LocalRepository { get; }
 
         ILogger Logger { get; set; }
+
+        bool MinDependencyPatches { get; set; }
         
         /// <summary>
         /// Remote repository to install packages from.
@@ -39,5 +42,7 @@ namespace NuGet
         void UpdatePackage(string packageId, IVersionSpec versionSpec, bool updateDependencies, bool allowPrereleaseVersions);
         void UninstallPackage(IPackage package, bool forceRemove, bool removeDependencies);
         void UninstallPackage(string packageId, SemanticVersion version, bool forceRemove, bool removeDependencies);
+
+        IEnumerable<PackageOperation> GetInstallPackageOperations(IProjectManager projectManager, string packageId, SemanticVersion version, bool ignoreDependencies, bool allowPrereleaseVersions);
     }
 }

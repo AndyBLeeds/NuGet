@@ -54,6 +54,7 @@ namespace NuGet
             PathResolver = pathResolver;
             LocalRepository = localRepository;
             _packageReferenceRepository = LocalRepository as IPackageReferenceRepository;
+            MinDependencyPatches = false;
         }
 
         public IPackagePathResolver PathResolver
@@ -104,6 +105,12 @@ namespace NuGet
             }
         }
 
+        public bool MinDependencyPatches
+        {
+            get;
+            set;
+        }
+
         public virtual void AddPackageReference(string packageId)
         {
             AddPackageReference(packageId, version: null, ignoreDependencies: false, allowPrereleaseVersions: false);
@@ -122,16 +129,21 @@ namespace NuGet
 
         public virtual void AddPackageReference(IPackage package, bool ignoreDependencies, bool allowPrereleaseVersions)
         {
+            var dependentsWalker = new DependentsWalker(LocalRepository, GetPackageTargetFramework(package.Id))
+            {
+                MinDependencyPatches = MinDependencyPatches
+            };
             Execute(package, new UpdateWalker(LocalRepository,
                                               SourceRepository,
-                                              new DependentsWalker(LocalRepository, GetPackageTargetFramework(package.Id)),
+                                              dependentsWalker,
                                               ConstraintProvider,
                                               Project.TargetFramework,
                                               NullLogger.Instance,
                                               !ignoreDependencies,
                                               allowPrereleaseVersions)
                                               {
-                                                  AcceptedTargets = PackageTargets.Project
+                                                  AcceptedTargets = PackageTargets.Project,
+                                                  MinDependencyPatches = MinDependencyPatches
                                               });
         }
 
