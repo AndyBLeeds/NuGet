@@ -129,41 +129,15 @@ namespace NuGet
             bool allowPrereleaseVersions,
             bool ignoreWalkInfo = false)
         {
-            var installerWalker = CreateInstallWalker(
-                targetFramework, ignoreDependencies, 
-                allowPrereleaseVersions, ignoreWalkInfo);
-            Execute(package, installerWalker);
-        }
-
-        public IEnumerable<PackageOperation> GetInstallPackageOperations(
-            IProjectManager projectManager,
-            string packageId,
-            SemanticVersion version,
-            bool ignoreDependencies,
-            bool allowPrereleaseVersions)
-        {
-            IPackage package = PackageRepositoryHelper.ResolvePackage(SourceRepository, LocalRepository, packageId, version, allowPrereleaseVersions);
-            var targetFramework = projectManager != null ? projectManager.Project.TargetFramework : null;
-            var installerWalker = CreateInstallWalker(
-                targetFramework, ignoreDependencies, allowPrereleaseVersions, ignoreWalkInfo: false);
-            return installerWalker.ResolveOperations(package);
-        }
-
-        private InstallWalker CreateInstallWalker(
-            FrameworkName targetFramework,
-            bool ignoreDependencies,
-            bool allowPrereleaseVersions,
-            bool ignoreWalkInfo)
-        {
             var installerWalker = new InstallWalker(
                 LocalRepository, SourceRepository,
                 targetFramework, Logger,
                 ignoreDependencies, allowPrereleaseVersions)
-                {
-                    DisableWalkInfo = ignoreWalkInfo,
-                    MinDependencyPatches = MinDependencyPatches
-                };
-            return installerWalker;
+            {
+                DisableWalkInfo = ignoreWalkInfo,
+                MinDependencyPatches = MinDependencyPatches
+            };
+            Execute(package, installerWalker);
         }
 
         private void Execute(IPackage package, IPackageOperationResolver resolver)

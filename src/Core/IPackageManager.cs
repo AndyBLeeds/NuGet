@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Versioning;
 
 namespace NuGet
 {
@@ -42,7 +43,5 @@ namespace NuGet
         void UpdatePackage(string packageId, IVersionSpec versionSpec, bool updateDependencies, bool allowPrereleaseVersions);
         void UninstallPackage(IPackage package, bool forceRemove, bool removeDependencies);
         void UninstallPackage(string packageId, SemanticVersion version, bool forceRemove, bool removeDependencies);
-
-        IEnumerable<PackageOperation> GetInstallPackageOperations(IProjectManager projectManager, string packageId, SemanticVersion version, bool ignoreDependencies, bool allowPrereleaseVersions);
     }
 }

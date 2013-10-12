@@ -19,7 +19,6 @@ namespace NuGet
         private readonly HashSet<IPackage> _packagesToKeep = new HashSet<IPackage>(PackageEqualityComparer.IdAndVersion);
 
         // this ctor is used for unit tests
-        // this ctor is used for unit tests
         internal InstallWalker(IPackageRepository localRepository,
                                IPackageRepository sourceRepository,
                                ILogger logger,
