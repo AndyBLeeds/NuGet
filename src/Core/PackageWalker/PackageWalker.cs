@@ -73,7 +73,7 @@ namespace NuGet
         /// The patch number is the part after major and minor. E.g. for version 1.2.3.4, 
         /// the patch number is 3.4.
         /// </remarks>
-        protected virtual bool MinDependencyPatches
+        public bool MinDependencyPatches
         {
             get;
             set;

@@ -19,11 +19,12 @@ namespace NuGet
         private readonly HashSet<IPackage> _packagesToKeep = new HashSet<IPackage>(PackageEqualityComparer.IdAndVersion);
 
         // this ctor is used for unit tests
+        // this ctor is used for unit tests
         internal InstallWalker(IPackageRepository localRepository,
                                IPackageRepository sourceRepository,
                                ILogger logger,
                                bool ignoreDependencies,
-                               bool allowPrereleaseVersions) 
+                               bool allowPrereleaseVersions)
             : this(localRepository, sourceRepository, null, logger, ignoreDependencies, allowPrereleaseVersions)
         {
         }
@@ -40,19 +41,17 @@ namespace NuGet
                  targetFramework: targetFramework,
                  logger: logger,
                  ignoreDependencies: ignoreDependencies,
-                 allowPrereleaseVersions: allowPrereleaseVersions,
-                 minDependencyPatches: false)
+                 allowPrereleaseVersions: allowPrereleaseVersions)
         {
         }
-
+        
         public InstallWalker(IPackageRepository localRepository,
                              IPackageRepository sourceRepository,
                              IPackageConstraintProvider constraintProvider,
                              FrameworkName targetFramework,
                              ILogger logger,
                              bool ignoreDependencies,
-                             bool allowPrereleaseVersions,
-                             bool minDependencyPatches)
+                             bool allowPrereleaseVersions)
             : base(targetFramework)
         {
 
@@ -76,7 +75,6 @@ namespace NuGet
             ConstraintProvider = constraintProvider;
             _operations = new OperationLookup();
             _allowPrereleaseVersions = allowPrereleaseVersions;
-            MinDependencyPatches = minDependencyPatches;
         }
 
         internal bool DisableWalkInfo

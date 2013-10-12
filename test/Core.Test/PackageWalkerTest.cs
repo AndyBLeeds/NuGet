@@ -526,8 +526,7 @@ namespace NuGet.Test
                                                                    null,
                                                                    NullLogger.Instance,
                                                                    ignoreDependencies: false,
-                                                                   allowPrereleaseVersions: false,
-                                                                   minDependencyPatches: false);
+                                                                   allowPrereleaseVersions: false);
 
             // Act & Assert
             ExceptionAssert.Throws<InvalidOperationException>(() => resolver.ResolveOperations(A20), "Unable to resolve dependency 'B (\u2265 2.0)'.'B' has an additional constraint (= 1.4) defined in foo.");
@@ -1119,6 +1118,7 @@ namespace NuGet.Test
                                                                    NullLogger.Instance,
                                                                    ignoreDependencies: false,
                                                                    allowPrereleaseVersions: false);
+
             // Act
             var packages = resolver.ResolveOperations(A10).ToList();
 
@@ -1127,9 +1127,9 @@ namespace NuGet.Test
             Assert.Equal("D", packages[0].Package.Id);
             Assert.Equal(new SemanticVersion("2.0"), packages[0].Package.Version);
             Assert.Equal("C", packages[1].Package.Id);
-            Assert.Equal(new SemanticVersion("1.1.1"), packages[1].Package.Version);
+            Assert.Equal(new SemanticVersion("1.1.3"), packages[1].Package.Version);
             Assert.Equal("B", packages[2].Package.Id);
-            Assert.Equal(new SemanticVersion("1.0"), packages[2].Package.Version);
+            Assert.Equal(new SemanticVersion("1.0.9"), packages[2].Package.Version);
             Assert.Equal("A", packages[3].Package.Id);
             Assert.Equal(new SemanticVersion("1.0"), packages[3].Package.Version);
         }
@@ -1167,8 +1167,10 @@ namespace NuGet.Test
                 logger: NullLogger.Instance,
                 targetFramework: null,
                 ignoreDependencies: false,
-                allowPrereleaseVersions: false,
-                minDependencyPatches: true);
+                allowPrereleaseVersions: false)
+                {
+                    MinDependencyPatches = true
+                };
 
             // Act
             var packages = resolver.ResolveOperations(A10).ToList();
@@ -1214,8 +1216,7 @@ namespace NuGet.Test
                 logger: NullLogger.Instance,
                 targetFramework: null,
                 ignoreDependencies: false,
-                allowPrereleaseVersions: false,
-                minDependencyPatches: false);
+                allowPrereleaseVersions: false);
 
             // Act
             var packages = resolver.ResolveOperations(A10).ToList();

@@ -140,6 +140,7 @@ namespace NuGet.PowerShell.Commands
 
                     if (WhatIf)
                     {
+                        /* !!!
                         var operations = PackageManager.GetInstallPackageOperations(ProjectManager, Id, Version, IgnoreDependencies, IncludePrerelease.IsPresent);
                         if (operations.IsEmpty())
                         {
@@ -151,7 +152,7 @@ namespace NuGet.PowerShell.Commands
                             {
                                 this.Log(MessageLevel.Info, "{0} {1}", operation.Action, operation.Package);
                             }
-                        }
+                        } */
                     }
                     else
                     {

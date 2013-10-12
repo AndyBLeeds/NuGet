@@ -27,8 +27,7 @@ namespace NuGet
                             bool updateDependencies,
                             bool allowPrereleaseVersions)
             : base(localRepository, sourceRepository, constraintProvider, targetFramework, 
-                   logger, !updateDependencies, allowPrereleaseVersions,
-                   minDependencyPatches: false)
+                   logger, !updateDependencies, allowPrereleaseVersions)
         {
             _dependentsResolver = dependentsResolver;
             AcceptedTargets = PackageTargets.All;
